@@ -15,68 +15,86 @@ GRID_COLOR = (50, 50, 50)
 TEXT_COLOR = (255, 255, 255)
 CAUGHT_COLOR = (255, 0, 0)
 
+
 def draw_grid(screen):
     for x in range(0, WIDTH, CELL_SIZE):
         pygame.draw.line(screen, GRID_COLOR, (x, 0), (x, HEIGHT))
     for y in range(0, HEIGHT, CELL_SIZE):
         pygame.draw.line(screen, GRID_COLOR, (0, y), (WIDTH, y))
 
+
 def draw_text(screen, text, font, color, center):
     render = font.render(text, True, color)
     rect = render.get_rect(center=center)
     screen.blit(render, rect)
+
 
 def game_loop(screen, font):
     apple_x, apple_y = GRID_WIDTH // 2, GRID_HEIGHT // 2
     snake_x, snake_y = random.randint(0, GRID_WIDTH - 1), random.randint(0, GRID_HEIGHT - 1)
     started = False
     score = 0
-    step_delay = 300
+    step_delay = 300  # milliseconds between moves
     running = True
+    direction = None
+    last_move_time = pygame.time.get_ticks()
 
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
-
-        keys = pygame.key.get_pressed()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_LEFT:
+                    direction = "LEFT"
+                elif event.key == pygame.K_RIGHT:
+                    direction = "RIGHT"
+                elif event.key == pygame.K_UP:
+                    direction = "UP"
+                elif event.key == pygame.K_DOWN:
+                    direction = "DOWN"
 
         # --- Wait for start ---
         if not started:
             screen.fill(BG_COLOR)
-            draw_text(screen, "Press Arrow Key to Start", font, TEXT_COLOR, (WIDTH//2, HEIGHT//2))
+            draw_text(screen, "Press Arrow Key to Start", font, TEXT_COLOR, (WIDTH // 2, HEIGHT // 2))
             pygame.display.flip()
-            if keys[pygame.K_LEFT] or keys[pygame.K_RIGHT] or keys[pygame.K_UP] or keys[pygame.K_DOWN]:
+            if direction:
                 started = True
             continue
 
-        # --- Player movement ---
-        if keys[pygame.K_LEFT]:
-            apple_x -= 1
-        elif keys[pygame.K_RIGHT]:
-            apple_x += 1
-        elif keys[pygame.K_UP]:
-            apple_y -= 1
-        elif keys[pygame.K_DOWN]:
-            apple_y += 1
+        current_time = pygame.time.get_ticks()
+        if current_time - last_move_time >= step_delay:
+            last_move_time = current_time
 
-        apple_x = max(0, min(GRID_WIDTH - 1, apple_x))
-        apple_y = max(0, min(GRID_HEIGHT - 1, apple_y))
+            # --- Player movement ---
+            if direction == "LEFT":
+                apple_x -= 1
+            elif direction == "RIGHT":
+                apple_x += 1
+            elif direction == "UP":
+                apple_y -= 1
+            elif direction == "DOWN":
+                apple_y += 1
 
-        # --- Snake AI ---
-        if snake_x < apple_x:
-            snake_x += 1
-        elif snake_x > apple_x:
-            snake_x -= 1
-        elif snake_y < apple_y:
-            snake_y += 1
-        elif snake_y > apple_y:
-            snake_y -= 1
+            apple_x = max(0, min(GRID_WIDTH - 1, apple_x))
+            apple_y = max(0, min(GRID_HEIGHT - 1, apple_y))
 
-        # --- Collision ---
-        if snake_x == apple_x and snake_y == apple_y:
-            return score  # end round
+            # --- Snake AI ---
+            if snake_x < apple_x:
+                snake_x += 1
+            elif snake_x > apple_x:
+                snake_x -= 1
+            elif snake_y < apple_y:
+                snake_y += 1
+            elif snake_y > apple_y:
+                snake_y -= 1
+
+            # --- Collision ---
+            if snake_x == apple_x and snake_y == apple_y:
+                return score  # end round
+
+            score += 1
 
         # --- Draw ---
         screen.fill(BG_COLOR)
@@ -84,11 +102,8 @@ def game_loop(screen, font):
         pygame.draw.rect(screen, APPLE_COLOR, (apple_x * CELL_SIZE, apple_y * CELL_SIZE, CELL_SIZE, CELL_SIZE))
         pygame.draw.rect(screen, SNAKE_COLOR, (snake_x * CELL_SIZE, snake_y * CELL_SIZE, CELL_SIZE, CELL_SIZE))
         draw_text(screen, f"Score: {score}", font, TEXT_COLOR, (100, 40))
-
         pygame.display.flip()
 
-        score += 1
-        pygame.time.wait(step_delay)
 
 def main():
     pygame.init()
@@ -99,11 +114,12 @@ def main():
 
     while True:
         score = game_loop(screen, font)
+
         # --- Game Over Screen ---
         screen.fill(BG_COLOR)
-        draw_text(screen, "Caught!", font, CAUGHT_COLOR, (WIDTH//2, HEIGHT//2 - 50))
-        draw_text(screen, f"Score: {score}", font, TEXT_COLOR, (WIDTH//2, HEIGHT//2 + 10))
-        draw_text(screen, "Press R to Restart or Q to Quit", font, TEXT_COLOR, (WIDTH//2, HEIGHT//2 + 80))
+        draw_text(screen, "Caught!", font, CAUGHT_COLOR, (WIDTH // 2, HEIGHT // 2 - 50))
+        draw_text(screen, f"Score: {score}", font, TEXT_COLOR, (WIDTH // 2, HEIGHT // 2 + 10))
+        draw_text(screen, "Press R to Restart or Q to Quit", font, TEXT_COLOR, (WIDTH // 2, HEIGHT // 2 + 80))
         pygame.display.flip()
 
         waiting = True
@@ -112,13 +128,16 @@ def main():
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     sys.exit()
+
             keys = pygame.key.get_pressed()
             if keys[pygame.K_q]:
                 pygame.quit()
                 sys.exit()
             if keys[pygame.K_r]:
                 waiting = False
+
             clock.tick(15)
+
 
 if __name__ == "__main__":
     main()
