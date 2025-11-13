@@ -4,17 +4,16 @@ import pygame
 import sys
 import random
 
-# Grid setup
 CELL_SIZE = 100
-GRID_WIDTH, GRID_HEIGHT = 10, 8  # larger grid
+GRID_WIDTH, GRID_HEIGHT = 10, 8
 WIDTH, HEIGHT = GRID_WIDTH * CELL_SIZE, GRID_HEIGHT * CELL_SIZE
 
-# Colours
 APPLE_COLOR = (255, 0, 0)
 SNAKE_COLOR = (0, 200, 0)
 BG_COLOR = (25, 25, 25)
 GRID_COLOR = (50, 50, 50)
 TEXT_COLOR = (255, 255, 255)
+CAUGHT_COLOR = (255, 0, 0)
 
 def draw_grid(screen):
     for x in range(0, WIDTH, CELL_SIZE):
@@ -22,20 +21,18 @@ def draw_grid(screen):
     for y in range(0, HEIGHT, CELL_SIZE):
         pygame.draw.line(screen, GRID_COLOR, (0, y), (WIDTH, y))
 
-def main():
-    pygame.init()
-    screen = pygame.display.set_mode((WIDTH, HEIGHT))
-    pygame.display.set_caption("Snake Escape – Grid AI")
+def draw_text(screen, text, font, color, center):
+    render = font.render(text, True, color)
+    rect = render.get_rect(center=center)
+    screen.blit(render, rect)
 
-    clock = pygame.time.Clock()
-    font = pygame.font.SysFont(None, 60)
-
+def game_loop(screen, font):
     apple_x, apple_y = GRID_WIDTH // 2, GRID_HEIGHT // 2
     snake_x, snake_y = random.randint(0, GRID_WIDTH - 1), random.randint(0, GRID_HEIGHT - 1)
-
     started = False
+    score = 0
+    step_delay = 300
     running = True
-    step_delay = 300  # ms between steps
 
     while running:
         for event in pygame.event.get():
@@ -45,38 +42,29 @@ def main():
 
         keys = pygame.key.get_pressed()
 
-        # --- Wait for arrow key to start ---
+        # --- Wait for start ---
         if not started:
             screen.fill(BG_COLOR)
-            title = font.render("Press Arrow Key to Start", True, TEXT_COLOR)
-            rect = title.get_rect(center=(WIDTH // 2, HEIGHT // 2))
-            screen.blit(title, rect)
+            draw_text(screen, "Press Arrow Key to Start", font, TEXT_COLOR, (WIDTH//2, HEIGHT//2))
             pygame.display.flip()
-
-            # Check for first arrow press
             if keys[pygame.K_LEFT] or keys[pygame.K_RIGHT] or keys[pygame.K_UP] or keys[pygame.K_DOWN]:
                 started = True
             continue
 
-        # --- Player (apple) movement ---
-        moved = False
+        # --- Player movement ---
         if keys[pygame.K_LEFT]:
             apple_x -= 1
-            moved = True
         elif keys[pygame.K_RIGHT]:
             apple_x += 1
-            moved = True
         elif keys[pygame.K_UP]:
             apple_y -= 1
-            moved = True
         elif keys[pygame.K_DOWN]:
             apple_y += 1
-            moved = True
 
         apple_x = max(0, min(GRID_WIDTH - 1, apple_x))
         apple_y = max(0, min(GRID_HEIGHT - 1, apple_y))
 
-        # --- Snake AI (simple greedy) ---
+        # --- Snake AI ---
         if snake_x < apple_x:
             snake_x += 1
         elif snake_x > apple_x:
@@ -86,30 +74,51 @@ def main():
         elif snake_y > apple_y:
             snake_y -= 1
 
-        # --- Collision detection ---
+        # --- Collision ---
         if snake_x == apple_x and snake_y == apple_y:
-            screen.fill(BG_COLOR)
-            msg = font.render("Caught!", True, (255, 0, 0))
-            rect = msg.get_rect(center=(WIDTH // 2, HEIGHT // 2))
-            screen.blit(msg, rect)
-            pygame.display.flip()
-            pygame.time.wait(1500)
-            running = False
-            continue
+            return score  # end round
 
-        # --- Drawing ---
+        # --- Draw ---
         screen.fill(BG_COLOR)
         draw_grid(screen)
         pygame.draw.rect(screen, APPLE_COLOR, (apple_x * CELL_SIZE, apple_y * CELL_SIZE, CELL_SIZE, CELL_SIZE))
         pygame.draw.rect(screen, SNAKE_COLOR, (snake_x * CELL_SIZE, snake_y * CELL_SIZE, CELL_SIZE, CELL_SIZE))
+        draw_text(screen, f"Score: {score}", font, TEXT_COLOR, (100, 40))
 
         pygame.display.flip()
 
+        score += 1
         pygame.time.wait(step_delay)
-        clock.tick(30)
 
-    pygame.quit()
-    sys.exit()
+def main():
+    pygame.init()
+    screen = pygame.display.set_mode((WIDTH, HEIGHT))
+    pygame.display.set_caption("Snake Escape – UI + Score")
+    font = pygame.font.SysFont(None, 60)
+    clock = pygame.time.Clock()
+
+    while True:
+        score = game_loop(screen, font)
+        # --- Game Over Screen ---
+        screen.fill(BG_COLOR)
+        draw_text(screen, "Caught!", font, CAUGHT_COLOR, (WIDTH//2, HEIGHT//2 - 50))
+        draw_text(screen, f"Score: {score}", font, TEXT_COLOR, (WIDTH//2, HEIGHT//2 + 10))
+        draw_text(screen, "Press R to Restart or Q to Quit", font, TEXT_COLOR, (WIDTH//2, HEIGHT//2 + 80))
+        pygame.display.flip()
+
+        waiting = True
+        while waiting:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+            keys = pygame.key.get_pressed()
+            if keys[pygame.K_q]:
+                pygame.quit()
+                sys.exit()
+            if keys[pygame.K_r]:
+                waiting = False
+            clock.tick(15)
 
 if __name__ == "__main__":
     main()
