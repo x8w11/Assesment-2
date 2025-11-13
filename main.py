@@ -9,11 +9,15 @@ GRID_WIDTH, GRID_HEIGHT = 10, 8
 WIDTH, HEIGHT = GRID_WIDTH * CELL_SIZE, GRID_HEIGHT * CELL_SIZE
 
 APPLE_COLOR = (255, 0, 0)
+EXTRA_APPLE_COLOR = (255, 150, 0)
 SNAKE_COLOR = (0, 200, 0)
 BG_COLOR = (25, 25, 25)
 GRID_COLOR = (50, 50, 50)
 TEXT_COLOR = (255, 255, 255)
 CAUGHT_COLOR = (255, 0, 0)
+
+NUM_EXTRA_APPLES = 3  # number of random apples on the field
+
 
 def draw_grid(screen):
     for x in range(0, WIDTH, CELL_SIZE):
@@ -21,10 +25,20 @@ def draw_grid(screen):
     for y in range(0, HEIGHT, CELL_SIZE):
         pygame.draw.line(screen, GRID_COLOR, (0, y), (WIDTH, y))
 
+
 def draw_text(screen, text, font, color, center):
     render = font.render(text, True, color)
     rect = render.get_rect(center=center)
     screen.blit(render, rect)
+
+
+def random_empty_position(exclude_positions):
+    """Generate a random (x, y) not in excluded list."""
+    while True:
+        pos = (random.randint(0, GRID_WIDTH - 1), random.randint(0, GRID_HEIGHT - 1))
+        if pos not in exclude_positions:
+            return pos
+
 
 def game_loop(screen, font):
     apple_x, apple_y = GRID_WIDTH // 2, GRID_HEIGHT // 2
@@ -33,6 +47,12 @@ def game_loop(screen, font):
     score = 0
     step_delay = 300
     running = True
+
+    # --- Spawn extra apples ---
+    extra_apples = []
+    for _ in range(NUM_EXTRA_APPLES):
+        pos = random_empty_position([(apple_x, apple_y), (snake_x, snake_y)])
+        extra_apples.append(pos)
 
     while running:
         for event in pygame.event.get():
@@ -45,7 +65,7 @@ def game_loop(screen, font):
         # --- Wait for start ---
         if not started:
             screen.fill(BG_COLOR)
-            draw_text(screen, "Press Arrow Key to Start", font, TEXT_COLOR, (WIDTH//2, HEIGHT//2))
+            draw_text(screen, "Press Arrow Key to Start", font, TEXT_COLOR, (WIDTH // 2, HEIGHT // 2))
             pygame.display.flip()
             if keys[pygame.K_LEFT] or keys[pygame.K_RIGHT] or keys[pygame.K_UP] or keys[pygame.K_DOWN]:
                 started = True
@@ -74,36 +94,51 @@ def game_loop(screen, font):
         elif snake_y > apple_y:
             snake_y -= 1
 
-        # --- Collision ---
+        # --- Snake catches player apple ---
         if snake_x == apple_x and snake_y == apple_y:
-            return score  # end round
+            return score  # Game over
 
-        # --- Draw ---
+        # --- Player apple eats extra apples ---
+        for i, (ex, ey) in enumerate(extra_apples):
+            if ex == apple_x and ey == apple_y:
+                score += 10  # give bigger score for collecting
+                new_pos = random_empty_position(extra_apples + [(apple_x, apple_y), (snake_x, snake_y)])
+                extra_apples[i] = new_pos
+
+        # --- Draw everything ---
         screen.fill(BG_COLOR)
         draw_grid(screen)
+
+        # Draw all extra apples
+        for ex, ey in extra_apples:
+            pygame.draw.rect(screen, EXTRA_APPLE_COLOR, (ex * CELL_SIZE, ey * CELL_SIZE, CELL_SIZE, CELL_SIZE))
+
+        # Draw player apple and snake
         pygame.draw.rect(screen, APPLE_COLOR, (apple_x * CELL_SIZE, apple_y * CELL_SIZE, CELL_SIZE, CELL_SIZE))
         pygame.draw.rect(screen, SNAKE_COLOR, (snake_x * CELL_SIZE, snake_y * CELL_SIZE, CELL_SIZE, CELL_SIZE))
-        draw_text(screen, f"Score: {score}", font, TEXT_COLOR, (100, 40))
 
+        draw_text(screen, f"Score: {score}", font, TEXT_COLOR, (100, 40))
         pygame.display.flip()
 
         score += 1
         pygame.time.wait(step_delay)
 
+
 def main():
     pygame.init()
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
-    pygame.display.set_caption("Snake Escape – UI + Score")
+    pygame.display.set_caption("Snake Escape – Multi-Apple Mode")
     font = pygame.font.SysFont(None, 60)
     clock = pygame.time.Clock()
 
     while True:
         score = game_loop(screen, font)
+
         # --- Game Over Screen ---
         screen.fill(BG_COLOR)
-        draw_text(screen, "Caught!", font, CAUGHT_COLOR, (WIDTH//2, HEIGHT//2 - 50))
-        draw_text(screen, f"Score: {score}", font, TEXT_COLOR, (WIDTH//2, HEIGHT//2 + 10))
-        draw_text(screen, "Press R to Restart or Q to Quit", font, TEXT_COLOR, (WIDTH//2, HEIGHT//2 + 80))
+        draw_text(screen, "Caught!", font, CAUGHT_COLOR, (WIDTH // 2, HEIGHT // 2 - 50))
+        draw_text(screen, f"Score: {score}", font, TEXT_COLOR, (WIDTH // 2, HEIGHT // 2 + 10))
+        draw_text(screen, "Press R to Restart or Q to Quit", font, TEXT_COLOR, (WIDTH // 2, HEIGHT // 2 + 80))
         pygame.display.flip()
 
         waiting = True
@@ -119,6 +154,7 @@ def main():
             if keys[pygame.K_r]:
                 waiting = False
             clock.tick(15)
+
 
 if __name__ == "__main__":
     main()
