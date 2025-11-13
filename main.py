@@ -9,11 +9,14 @@ GRID_WIDTH, GRID_HEIGHT = 10, 8
 WIDTH, HEIGHT = GRID_WIDTH * CELL_SIZE, GRID_HEIGHT * CELL_SIZE
 
 APPLE_COLOR = (255, 0, 0)
+EXTRA_APPLE_COLOR = (255, 150, 0)
 SNAKE_COLOR = (0, 200, 0)
 BG_COLOR = (25, 25, 25)
 GRID_COLOR = (50, 50, 50)
 TEXT_COLOR = (255, 255, 255)
 CAUGHT_COLOR = (255, 0, 0)
+
+NUM_EXTRA_APPLES = 3  # number of random apples on the field
 
 
 def draw_grid(screen):
@@ -29,6 +32,14 @@ def draw_text(screen, text, font, color, center):
     screen.blit(render, rect)
 
 
+def random_empty_position(exclude_positions):
+    """Generate a random (x, y) not in excluded list."""
+    while True:
+        pos = (random.randint(0, GRID_WIDTH - 1), random.randint(0, GRID_HEIGHT - 1))
+        if pos not in exclude_positions:
+            return pos
+
+
 def game_loop(screen, font):
     apple_x, apple_y = GRID_WIDTH // 2, GRID_HEIGHT // 2
     snake_x, snake_y = random.randint(0, GRID_WIDTH - 1), random.randint(0, GRID_HEIGHT - 1)
@@ -38,6 +49,12 @@ def game_loop(screen, font):
     running = True
     direction = None
     last_move_time = pygame.time.get_ticks()
+
+    # --- Spawn extra apples ---
+    extra_apples = []
+    for _ in range(NUM_EXTRA_APPLES):
+        pos = random_empty_position([(apple_x, apple_y), (snake_x, snake_y)])
+        extra_apples.append(pos)
 
     while running:
         for event in pygame.event.get():
@@ -95,20 +112,38 @@ def game_loop(screen, font):
                 return score  # end round
 
             score += 1
+        # --- Snake catches player apple ---
+        if snake_x == apple_x and snake_y == apple_y:
+            return score  # Game over
 
-        # --- Draw ---
+        # --- Player apple eats extra apples ---
+        for i, (ex, ey) in enumerate(extra_apples):
+            if ex == apple_x and ey == apple_y:
+                score += 10  # give bigger score for collecting
+                new_pos = random_empty_position(extra_apples + [(apple_x, apple_y), (snake_x, snake_y)])
+                extra_apples[i] = new_pos
+
+        # --- Draw everything ---
         screen.fill(BG_COLOR)
         draw_grid(screen)
+
+        # Draw all extra apples
+        for ex, ey in extra_apples:
+            pygame.draw.rect(screen, EXTRA_APPLE_COLOR, (ex * CELL_SIZE, ey * CELL_SIZE, CELL_SIZE, CELL_SIZE))
+
+        # Draw player apple and snake
         pygame.draw.rect(screen, APPLE_COLOR, (apple_x * CELL_SIZE, apple_y * CELL_SIZE, CELL_SIZE, CELL_SIZE))
         pygame.draw.rect(screen, SNAKE_COLOR, (snake_x * CELL_SIZE, snake_y * CELL_SIZE, CELL_SIZE, CELL_SIZE))
+
         draw_text(screen, f"Score: {score}", font, TEXT_COLOR, (100, 40))
         pygame.display.flip()
+
 
 
 def main():
     pygame.init()
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
-    pygame.display.set_caption("Snake Escape – UI + Score")
+    pygame.display.set_caption("Snake Escape – Multi-Apple Mode")
     font = pygame.font.SysFont(None, 60)
     clock = pygame.time.Clock()
 
@@ -138,6 +173,7 @@ def main():
 
             clock.tick(15)
 
+#Fixed some errors please commit
 
 if __name__ == "__main__":
     main()
